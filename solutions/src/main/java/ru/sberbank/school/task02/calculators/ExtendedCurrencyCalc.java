@@ -27,11 +27,11 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
     }
 
     @Override
-    public Optional<BigDecimal> convertReversed(@NonNull ClientOperation operation, @NonNull Symbol symbol,
-                                                @NonNull BigDecimal amount, double delta,
-                                                @NonNull Beneficiary beneficiary) {
+    public Optional<BigDecimal> convertReversed(ClientOperation operation, Symbol symbol, BigDecimal amount,
+                                                double delta, Beneficiary beneficiary) {
         List<Quote> quotes = getExternalQuotesService().getQuotes(symbol);
-        if (quotes == null || quotes.isEmpty()) {
+        if (operation == null || symbol == null || amount == null
+                || beneficiary == null || quotes == null || quotes.isEmpty()) {
             return Optional.empty();
         }
         sortQuotes(quotes);
