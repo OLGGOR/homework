@@ -16,10 +16,12 @@ public class Main {
         ExternalQuotesService quotesService = new MyExternalQuotesService();
         ExtendedFxConversionService calculator = serviceFactory.getExtendedFxConversionService(quotesService);
 
-        System.out.println(calculator.convertReversed(ClientOperation.BUY, Symbol.USD_RUB,
+        System.out.println(calculator.convertReversed(ClientOperation.SELL, Symbol.USD_RUB,
                 new BigDecimal(83_000_000), 100, Beneficiary.BANK));
 
 
+        System.out.println(calculator.convertReversed(ClientOperation.BUY, Symbol.USD_RUB,
+                new BigDecimal(99_000), 100, Beneficiary.CLIENT));
     }
 
 }
