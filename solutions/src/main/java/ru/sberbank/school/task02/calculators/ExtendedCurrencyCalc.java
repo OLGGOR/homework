@@ -61,7 +61,9 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
             }
         }
 
-        return Optional.of(operation == ClientOperation.BUY ? find.getBid() : find.getOffer());
+        return Optional.of(operation == ClientOperation.BUY
+                ? BigDecimal.ONE.divide(find.getBid(), 2, RoundingMode.HALF_UP)
+                : BigDecimal.ONE.divide(find.getOffer(), 2, RoundingMode.HALF_UP));
     }
 
     private void getListsSuitableQuotes(List<Quote> quotes, List<Quote> exactHit, List<Quote> deltaHit,
