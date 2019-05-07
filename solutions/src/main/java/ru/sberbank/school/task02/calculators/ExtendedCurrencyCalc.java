@@ -31,45 +31,63 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
                                                 @NonNull BigDecimal amount, double delta,
                                                 @NonNull Beneficiary beneficiary) {
         List<Quote> quotes = getExternalQuotesService().getQuotes(symbol);
+        if (quotes == null || quotes.isEmpty()) {
+            return Optional.empty();
+        }
         sortQuotes(quotes);
-        List<Quote> suitableQuotes = new ArrayList<>();
-        BigDecimal val;
-        BigDecimal result;
-        BigDecimal previousVolume = null;
-        Quote find = null;
 
-        for (Quote q : quotes) {
-            val = (operation == ClientOperation.BUY) ? q.getOffer() : q.getBid();
-            result = amount.divide(val, RoundingMode.HALF_UP);
-            if (previousVolume != null && result.compareTo(previousVolume) < 0) {
-                break;
-            } else if (q.isInfinity() || result.compareTo(q.getVolumeSize()) < 0) {
-                find = q;
-                break;
-            } else if (result.compareTo(q.getVolumeSize().add(BigDecimal.valueOf(delta))) < 0) {
-                suitableQuotes.add(q);
-            }
-            previousVolume = q.getVolumeSize();
+        List<Quote> deltaHit = new ArrayList<>();
+        List<Quote> exactHit = new ArrayList<>();
+        getListsSuitableQuotes(quotes, exactHit, deltaHit, operation, amount, delta);
+
+
+        if (exactHit.isEmpty() && deltaHit.isEmpty()) {
+            return Optional.empty();
         }
 
-        if (find == null && suitableQuotes.size() == 0) {
-            return Optional.empty();
-        } else if (suitableQuotes.size() != 0) {
-            find = suitableQuotes.get(0);
-            boolean compareResult;
+        List<Quote> tmp = !exactHit.isEmpty() ? exactHit : deltaHit;
+        Quote find = tmp.get(0);
+        boolean compareResult;
 
-            for (Quote q : suitableQuotes) {
-                compareResult = (operation == ClientOperation.BUY) ? q.getOffer().compareTo(find.getOffer()) > 0 :
-                        q.getBid().compareTo(find.getBid()) < 0;
-                if (beneficiary == Beneficiary.BANK && compareResult) {
-                    find = q;
-                } else if (beneficiary == Beneficiary.CLIENT && compareResult) {
-                    find = q;
-                }
+        for (Quote q : tmp) {
+            compareResult = (operation == ClientOperation.BUY)
+                    ? q.getOffer().compareTo(find.getOffer()) > 0
+                    : q.getBid().compareTo(find.getBid()) < 0;
+
+            if (beneficiary == Beneficiary.BANK && compareResult) {
+                find = q;
+            } else if (beneficiary == Beneficiary.CLIENT && !compareResult) {
+                find = q;
             }
         }
 
         return Optional.of(operation == ClientOperation.BUY ? find.getOffer() : find.getBid());
+    }
+
+    private void getListsSuitableQuotes(List<Quote> quotes, List<Quote> exactHit, List<Quote> deltaHit,
+                                               ClientOperation operation, BigDecimal amount, double delta) {
+        BigDecimal result;
+        BigDecimal previousVolume = null;
+
+        for (Quote q : quotes) {
+            result = (operation == ClientOperation.BUY)
+                    ? amount.divide(q.getOffer(), 5, RoundingMode.HALF_UP)
+                    : amount.divide(q.getBid(), 5, RoundingMode.HALF_UP);
+
+            if (isSuit(q, previousVolume, result)) {
+                exactHit.add(q);
+            }
+            if (isSuit(q, previousVolume, result.add(BigDecimal.valueOf(delta)))
+                    || isSuit(q, previousVolume, result.subtract(BigDecimal.valueOf(delta)))) {
+                deltaHit.add(q);
+            }
+            previousVolume = q.getVolumeSize();
+        }
+    }
+
+    private boolean isSuit(Quote current, BigDecimal previous, BigDecimal result) {
+        return previous != null && result.compareTo(previous) >= 0
+                && (current.isInfinity() || result.compareTo(current.getVolumeSize()) < 0);
     }
 
 }
