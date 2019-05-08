@@ -54,8 +54,8 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
 
         for (Quote q : tmp) {
             compareResult = (operation == ClientOperation.BUY)
-                    ? q.getBid().compareTo(find.getBid()) > 0
-                    : q.getOffer().compareTo(find.getOffer()) < 0;
+                    ? q.getOffer().compareTo(find.getOffer()) > 0
+                    : q.getBid().compareTo(find.getBid()) < 0;
 
             if (beneficiary == Beneficiary.BANK && compareResult) {
                 find = q;
@@ -65,8 +65,8 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
         }
 
         return Optional.of(operation == ClientOperation.BUY
-                ? BigDecimal.ONE.divide(find.getBid(), 10, RoundingMode.HALF_UP)
-                : BigDecimal.ONE.divide(find.getOffer(), 10, RoundingMode.HALF_UP));
+                ? BigDecimal.ONE.divide(find.getOffer(), 10, RoundingMode.HALF_UP)
+                : BigDecimal.ONE.divide(find.getBid(), 10, RoundingMode.HALF_UP));
     }
 
     private void getListsSuitableQuotes(List<Quote> quotes, List<Quote> exactHit, List<Quote> deltaHit,
@@ -76,8 +76,8 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
 
         for (Quote q : quotes) {
             result = (operation == ClientOperation.BUY)
-                    ? amount.divide(q.getBid(), 5, RoundingMode.HALF_UP)
-                    : amount.divide(q.getOffer(), 5, RoundingMode.HALF_UP);
+                    ? amount.divide(q.getOffer(), 10, RoundingMode.HALF_UP)
+                    : amount.divide(q.getBid(), 10, RoundingMode.HALF_UP);
 
             if (isSuit(q, previousVolume, result)) {
                 exactHit.add(q);
