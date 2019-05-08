@@ -4,6 +4,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import ru.sberbank.school.task02.ExternalQuotesService;
 import ru.sberbank.school.task02.FxConversionService;
+import ru.sberbank.school.task02.exception.FxConversionException;
 import ru.sberbank.school.task02.util.ClientOperation;
 import ru.sberbank.school.task02.util.Quote;
 import ru.sberbank.school.task02.util.Symbol;
@@ -16,18 +17,21 @@ public class CurrencyCalc implements FxConversionService {
 
     private ExternalQuotesService externalQuotesService;
 
-    public CurrencyCalc(ExternalQuotesService externalQuotesService) {
+    public CurrencyCalc(@NonNull ExternalQuotesService externalQuotesService) {
         this.externalQuotesService = externalQuotesService;
     }
 
     @Override
-    public BigDecimal convert( ClientOperation operation,
-                               Symbol symbol, BigDecimal amount) {
-        if (operation == null || symbol == null || amount == null || amount.equals(BigDecimal.ZERO)) {
+    public BigDecimal convert(@NonNull ClientOperation operation,
+                              @NonNull  Symbol symbol, @NonNull  BigDecimal amount) {
+        if (amount.equals(BigDecimal.ZERO)) {
             throw new IllegalArgumentException();
         }
 
         List<Quote> quotes = externalQuotesService.getQuotes(symbol);
+        if (quotes == null || quotes.isEmpty()) {
+            throw new FxConversionException("Список quotes не был сформирован");
+        }
         sortQuotes(quotes);
         Quote currentQuote = quotes.get(0);
 

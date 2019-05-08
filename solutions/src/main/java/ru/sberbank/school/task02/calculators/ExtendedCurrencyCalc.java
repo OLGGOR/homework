@@ -63,36 +63,37 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
 
     private void getListsSuitableQuotes(BigDecimal amount, ClientOperation operation, Set<Quote> exactHit,
                                           Set<Quote> deltaHit, List<Quote> quotes, double delta) {
-        BigDecimal curVolume;
-        BigDecimal addDelta;
-        BigDecimal subDelta;
-
         for (Quote current : quotes) {
-            curVolume = getCurrentAmount(amount, current, operation);
-            addDelta = getCurrentAmount(amount.add(BigDecimal.valueOf(delta)), current, operation);
-            subDelta = getCurrentAmount(amount.subtract(BigDecimal.valueOf(delta)), current, operation);
-
-            BigDecimal tmp = (current.isInfinity() || curVolume.compareTo(current.getVolumeSize()) < 0)
-                    ? curVolume : (addDelta.compareTo(current.getVolumeSize()) < 0) ? addDelta
-                    : (subDelta.compareTo(current.getVolumeSize()) < 0) ? subDelta : null;
+            BigDecimal curVolume = getCurrentAmount(amount, current, operation);
+            BigDecimal tmp = getSuitableVolume(amount, current, operation, delta);
             if (tmp == null) {
                 continue;
             }
 
-            boolean isSuit = true;
+            boolean suit = true;
 
             for (Quote other : quotes) {
                 if (isSuit(current, other, tmp)) {
-                    isSuit = false;
+                    suit = false;
                 }
             }
 
-            if (tmp.equals(curVolume) && isSuit) {
+            if (tmp.equals(curVolume) && suit) {
                 exactHit.add(current);
-            } else if (isSuit) {
+            } else if (suit) {
                 deltaHit.add(current);
             }
         }
+    }
+
+    private BigDecimal getSuitableVolume(BigDecimal amount, Quote current, ClientOperation operation, double delta) {
+        BigDecimal curVolume = getCurrentAmount(amount, current, operation);
+        BigDecimal addDelta = getCurrentAmount(amount.add(BigDecimal.valueOf(delta)), current, operation);
+        BigDecimal subDelta = getCurrentAmount(amount.subtract(BigDecimal.valueOf(delta)), current, operation);
+
+        return (current.isInfinity() || curVolume.compareTo(current.getVolumeSize()) < 0)
+                ? curVolume : (addDelta.compareTo(current.getVolumeSize()) < 0) ? addDelta
+                : (subDelta.compareTo(current.getVolumeSize()) < 0) ? subDelta : null;
     }
 
     private boolean isSuit(Quote current, Quote other, BigDecimal volume) {
