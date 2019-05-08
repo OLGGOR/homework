@@ -88,12 +88,7 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
     private boolean isSuit(Quote current, BigDecimal previous, BigDecimal amount) {
         boolean lessCurrent = current.isInfinity() || amount.compareTo(current.getVolumeSize()) < 0;
 
-        if (previous == null) {
-            return lessCurrent;
-        }
-
-        return amount.compareTo(previous) >= 0
-                && lessCurrent;
+        return (previous == null) ? lessCurrent : amount.compareTo(previous) >= 0 && lessCurrent;
     }
 
 }
