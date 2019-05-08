@@ -1,29 +1,87 @@
 package ru.sberbank.school.task02;
 
-import ru.sberbank.school.task02.util.Beneficiary;
-import ru.sberbank.school.task02.util.FxRequest;
-import ru.sberbank.school.task02.util.FxResponse;
+import ru.sberbank.school.task02.calculators.ExtendedCurrencyCalc;
+import ru.sberbank.school.task02.exception.ConverterConfigurationException;
+import ru.sberbank.school.task02.exception.FxConversionException;
+import ru.sberbank.school.task02.exception.WrongSymbolException;
+import ru.sberbank.school.task02.util.*;
 
-import java.util.List;
-import java.util.Map;
+import java.math.BigDecimal;
+import java.util.*;
 
 public class Client implements FxClientController {
 
-    public static void main(String[] args) {
-        String benef = System.getenv().get("SBRF_BENEFICIARY");
-        Beneficiary beneficiary = Beneficiary.valueOf(benef.toUpperCase());
+    private String beneficiary = System.getenv().get("SBRF_BENEFICIARY");
+    private ExtendedFxConversionService reverseCalc;
 
-        System.out.println(beneficiary);
-
+    public Client(ExternalQuotesService service) {
+        reverseCalc = new ExtendedCurrencyCalc(service);
     }
 
     @Override
     public List<FxResponse> fetchResult(List<FxRequest> requests) {
-        return null;
+        List<FxResponse> responses = new ArrayList<>();
+        for (FxRequest request : requests) {
+            responses.add(fetchResult(request));
+        }
+        return responses;
     }
 
     @Override
     public FxResponse fetchResult(FxRequest requests) {
-        return null;
+        Symbol symbol = getSymbol(requests);
+        BigDecimal amount = getAmount(requests);
+        Beneficiary beneficiary = getBeneficiary();
+        ClientOperation operation = getOperation(requests);
+
+        Optional<BigDecimal> response = reverseCalc.convertReversed(operation, symbol, amount, beneficiary);
+        boolean notFound = !response.isPresent();
+        String price = notFound ? null : String.valueOf(response.get());
+
+        return new FxResponse(symbol.getSymbol(), price, String.valueOf(amount), new Date().toString(), notFound);
+
+    }
+
+    private Beneficiary getBeneficiary() {
+        try {
+            if (beneficiary == null) {
+                throw new NullPointerException();
+            }
+            return Beneficiary.valueOf(beneficiary.toUpperCase());
+        } catch (NullPointerException e) {
+            throw new FxConversionException("Переменная окружения \"SBRF_BENEFICIARY\" не определена", e);
+        } catch (IllegalArgumentException e) {
+            throw new ConverterConfigurationException("Выгодопреобретатель введен неверно", e);
+        }
+    }
+
+    private BigDecimal getAmount(FxRequest request) {
+        try {
+            return BigDecimal.valueOf(Long.parseLong(request.getAmount()));
+        } catch (NumberFormatException e) {
+            throw new ConverterConfigurationException("Введен неверный объем", e);
+        }
+    }
+
+    private ClientOperation getOperation(FxRequest request) {
+        String requestDirection = request.getDirection().toUpperCase();
+
+        try {
+            return ClientOperation.valueOf(requestDirection);
+        } catch (IllegalArgumentException e) {
+            throw new ConverterConfigurationException("Введена неверная операция", e);
+        }
+    }
+
+    private Symbol getSymbol(FxRequest request) {
+        String requestSymbol = request.getSymbol();
+
+        if (requestSymbol.equalsIgnoreCase(Symbol.RUB_USD.getSymbol())) {
+            return Symbol.RUB_USD;
+        } else if (requestSymbol.equalsIgnoreCase(Symbol.USD_RUB.getSymbol())) {
+            return Symbol.USD_RUB;
+        }
+
+        throw new WrongSymbolException("Введена неверная валютная пара");
     }
 }
