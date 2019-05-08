@@ -24,7 +24,7 @@ public class CurrencyCalc implements FxConversionService {
     @Override
     public BigDecimal convert(@NonNull ClientOperation operation,
                               @NonNull  Symbol symbol, @NonNull  BigDecimal amount) {
-        if (amount.equals(BigDecimal.ZERO)) {
+        if (BigDecimal.ZERO.compareTo(amount) >= 0) {
             throw new IllegalArgumentException();
         }
 
