@@ -21,9 +21,9 @@ public class CurrencyCalc implements FxConversionService {
     }
 
     @Override
-    public BigDecimal convert(@NonNull ClientOperation operation,
-                              @NonNull Symbol symbol, @NonNull BigDecimal amount) {
-        if (amount.equals(BigDecimal.ZERO)) {
+    public BigDecimal convert( ClientOperation operation,
+                               Symbol symbol, BigDecimal amount) {
+        if (operation == null || symbol == null || amount == null || amount.equals(BigDecimal.ZERO)) {
             throw new IllegalArgumentException();
         }
 
@@ -41,7 +41,7 @@ public class CurrencyCalc implements FxConversionService {
         return operation == ClientOperation.BUY ? currentQuote.getOffer() : currentQuote.getBid();
     }
 
-    protected void sortQuotes(List<Quote> quotes) {
+    private void sortQuotes(List<Quote> quotes) {
         quotes.sort( (o1, o2) -> {
             if (o1.isInfinity()) {
                 return 1;

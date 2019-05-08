@@ -11,11 +11,16 @@ import java.util.*;
 
 public class Client implements FxClientController {
 
-    private String beneficiary = System.getenv().get("SBRF_BENEFICIARY");
+    private String beneficiary;
     private ExtendedFxConversionService reverseCalc;
 
-    public Client(ExternalQuotesService service) {
+    Client(ExternalQuotesService service) {
         reverseCalc = new ExtendedCurrencyCalc(service);
+        beneficiary = System.getenv().get("SBRF_BENEFICIARY");
+
+        if (beneficiary == null) {
+            throw new FxConversionException("Переменная окружения \"SBRF_BENEFICIARY\" не определена");
+        }
     }
 
     @Override
@@ -44,12 +49,7 @@ public class Client implements FxClientController {
 
     private Beneficiary getBeneficiary() {
         try {
-            if (beneficiary == null) {
-                throw new NullPointerException();
-            }
             return Beneficiary.valueOf(beneficiary.toUpperCase());
-        } catch (NullPointerException e) {
-            throw new FxConversionException("Переменная окружения \"SBRF_BENEFICIARY\" не определена", e);
         } catch (IllegalArgumentException e) {
             throw new ConverterConfigurationException("Выгодопреобретатель введен неверно", e);
         }

@@ -1,5 +1,6 @@
 package ru.sberbank.school.task02.calculators;
 
+import lombok.NonNull;
 import ru.sberbank.school.task02.ExtendedFxConversionService;
 import ru.sberbank.school.task02.ExternalQuotesService;
 import ru.sberbank.school.task02.util.Beneficiary;
@@ -9,9 +10,7 @@ import ru.sberbank.school.task02.util.Symbol;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConversionService {
 
@@ -26,26 +25,25 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
     }
 
     @Override
-    public Optional<BigDecimal> convertReversed(ClientOperation operation, Symbol symbol, BigDecimal amount,
-                                                double delta, Beneficiary beneficiary) {
+    public Optional<BigDecimal> convertReversed(@NonNull ClientOperation operation, @NonNull Symbol symbol,
+                                                @NonNull BigDecimal amount, double delta,
+                                                @NonNull Beneficiary beneficiary) {
+
         List<Quote> quotes = getExternalQuotesService().getQuotes(symbol);
-        if (operation == null || symbol == null || amount == null
-                || beneficiary == null || quotes == null || quotes.isEmpty() ) {
-            return Optional.empty();
+        if (quotes == null || quotes.isEmpty()) {
+            throw new NullPointerException();
         }
 
-        sortQuotes(quotes);
-
-        List<Quote> deltaHit = new ArrayList<>();
-        List<Quote> exactHit = new ArrayList<>();
-        getListsSuitableQuotes(quotes, exactHit, deltaHit, operation, amount, delta);
+        Set<Quote> exactHit = new HashSet<>();
+        Set<Quote> deltaHit = new HashSet<>();
+        getListsSuitableQuotes(amount, operation, exactHit, deltaHit, quotes, delta);
 
         if (exactHit.isEmpty() && deltaHit.isEmpty()) {
             return Optional.empty();
         }
 
-        List<Quote> tmp = !exactHit.isEmpty() ? exactHit : deltaHit;
-        Quote find = tmp.get(0);
+        Set<Quote> tmp = !exactHit.isEmpty() ? exactHit : deltaHit;
+        Quote find = tmp.iterator().next();
         boolean compareResult;
 
         for (Quote q : tmp) {
@@ -60,35 +58,54 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
             }
         }
 
-        return Optional.of(operation == ClientOperation.BUY
-                ? BigDecimal.ONE.divide(find.getBid(), 10, RoundingMode.HALF_UP)
-                : BigDecimal.ONE.divide(find.getOffer(), 10, RoundingMode.HALF_UP));
+        return Optional.of(getCurrentAmount(BigDecimal.ONE, find, operation));
     }
 
-    private void getListsSuitableQuotes(List<Quote> quotes, List<Quote> exactHit, List<Quote> deltaHit,
-                                               ClientOperation operation, BigDecimal amount, double delta) {
-        BigDecimal result;
-        BigDecimal previousVolume = null;
+    private void getListsSuitableQuotes(BigDecimal amount, ClientOperation operation, Set<Quote> exactHit,
+                                          Set<Quote> deltaHit, List<Quote> quotes, double delta) {
+        BigDecimal curVolume;
+        BigDecimal addDelta;
+        BigDecimal subDelta;
 
-        for (Quote q : quotes) {
-            result = (operation == ClientOperation.BUY)
-                    ? amount.divide(q.getBid(), 10, RoundingMode.HALF_UP)
-                    : amount.divide(q.getOffer(), 10, RoundingMode.HALF_UP);
+        for (Quote current : quotes) {
+            curVolume = getCurrentAmount(amount, current, operation);
+            addDelta = getCurrentAmount(amount.add(BigDecimal.valueOf(delta)), current, operation);
+            subDelta = getCurrentAmount(amount.subtract(BigDecimal.valueOf(delta)), current, operation);
 
-            if (isSuit(q, previousVolume, result)) {
-                exactHit.add(q);
-            } else if (isSuit(q, previousVolume, result.add(BigDecimal.valueOf(delta)))
-                    || isSuit(q, previousVolume, result.subtract(BigDecimal.valueOf(delta)))) {
-                deltaHit.add(q);
+            BigDecimal tmp = (current.isInfinity() || curVolume.compareTo(current.getVolumeSize()) < 0)
+                    ? curVolume : (addDelta.compareTo(current.getVolumeSize()) < 0) ? addDelta
+                    : (subDelta.compareTo(current.getVolumeSize()) < 0) ? subDelta : null;
+            if (tmp == null) {
+                continue;
             }
-            previousVolume = q.getVolumeSize();
+
+            boolean isSuit = true;
+
+            for (Quote other : quotes) {
+                if (isSuit(current, other, tmp)) {
+                    isSuit = false;
+                }
+            }
+
+            if (tmp.equals(curVolume) && isSuit) {
+                exactHit.add(current);
+            } else if (isSuit) {
+                deltaHit.add(current);
+            }
         }
     }
 
-    private boolean isSuit(Quote current, BigDecimal previous, BigDecimal amount) {
-        boolean lessCurrent = current.isInfinity() || amount.compareTo(current.getVolumeSize()) < 0;
+    private boolean isSuit(Quote current, Quote other, BigDecimal volume) {
+        boolean currentGreater = current.isInfinity() || (current.getVolumeSize().compareTo(other.getVolumeSize()) > 0
+                && current.getVolumeSize().compareTo(volume) > 0);
 
-        return (previous == null) ? lessCurrent : amount.compareTo(previous) >= 0 && lessCurrent;
+        return currentGreater && other.getVolumeSize().compareTo(volume) > 0;
+    }
+
+    private BigDecimal getCurrentAmount(BigDecimal a, Quote quote, ClientOperation operation) {
+        return (operation == ClientOperation.BUY)
+                ? a.divide(quote.getBid(), 10, RoundingMode.HALF_UP)
+                : a.divide(quote.getOffer(), 10, RoundingMode.HALF_UP);
     }
 
 }
