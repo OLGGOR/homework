@@ -28,21 +28,17 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
     @Override
     public Optional<BigDecimal> convertReversed(ClientOperation operation, Symbol symbol, BigDecimal amount,
                                                 double delta, Beneficiary beneficiary) {
+        List<Quote> quotes = getExternalQuotesService().getQuotes(symbol);
         if (operation == null || symbol == null || amount == null
-                || beneficiary == null ) {
+                || beneficiary == null || quotes == null || quotes.isEmpty() ) {
             return Optional.empty();
         }
 
-        List<Quote> quotes = getExternalQuotesService().getQuotes(symbol);
-        if (quotes == null || quotes.isEmpty()) {
-            return Optional.empty();
-        }
         sortQuotes(quotes);
 
         List<Quote> deltaHit = new ArrayList<>();
         List<Quote> exactHit = new ArrayList<>();
         getListsSuitableQuotes(quotes, exactHit, deltaHit, operation, amount, delta);
-
 
         if (exactHit.isEmpty() && deltaHit.isEmpty()) {
             return Optional.empty();
@@ -54,8 +50,8 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
 
         for (Quote q : tmp) {
             compareResult = (operation == ClientOperation.BUY)
-                    ? q.getOffer().compareTo(find.getOffer()) > 0
-                    : q.getBid().compareTo(find.getBid()) < 0;
+                    ? q.getBid().compareTo(find.getBid()) > 0
+                    : q.getOffer().compareTo(find.getOffer()) < 0;
 
             if (beneficiary == Beneficiary.BANK && compareResult) {
                 find = q;
@@ -65,8 +61,8 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
         }
 
         return Optional.of(operation == ClientOperation.BUY
-                ? BigDecimal.ONE.divide(find.getOffer(), 10, RoundingMode.HALF_UP)
-                : BigDecimal.ONE.divide(find.getBid(), 10, RoundingMode.HALF_UP));
+                ? BigDecimal.ONE.divide(find.getBid(), 10, RoundingMode.HALF_UP)
+                : BigDecimal.ONE.divide(find.getOffer(), 10, RoundingMode.HALF_UP));
     }
 
     private void getListsSuitableQuotes(List<Quote> quotes, List<Quote> exactHit, List<Quote> deltaHit,
@@ -76,8 +72,8 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
 
         for (Quote q : quotes) {
             result = (operation == ClientOperation.BUY)
-                    ? amount.divide(q.getOffer(), 10, RoundingMode.HALF_UP)
-                    : amount.divide(q.getBid(), 10, RoundingMode.HALF_UP);
+                    ? amount.divide(q.getBid(), 10, RoundingMode.HALF_UP)
+                    : amount.divide(q.getOffer(), 10, RoundingMode.HALF_UP);
 
             if (isSuit(q, previousVolume, result)) {
                 exactHit.add(q);
@@ -89,9 +85,15 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
         }
     }
 
-    private boolean isSuit(Quote current, BigDecimal previous, BigDecimal result) {
-        return previous != null && result.compareTo(previous) >= 0
-                && (current.isInfinity() || result.compareTo(current.getVolumeSize()) < 0);
+    private boolean isSuit(Quote current, BigDecimal previous, BigDecimal amount) {
+        boolean lessCurrent = current.isInfinity() || amount.compareTo(current.getVolumeSize()) < 0;
+
+        if (previous == null) {
+            return lessCurrent;
+        }
+
+        return amount.compareTo(previous) >= 0
+                && lessCurrent;
     }
 
 }
