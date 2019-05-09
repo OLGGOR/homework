@@ -28,6 +28,10 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
     public Optional<BigDecimal> convertReversed(@NonNull ClientOperation operation, @NonNull Symbol symbol,
                                                 @NonNull BigDecimal amount, double delta,
                                                 @NonNull Beneficiary beneficiary) {
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException();
+        }
+
         List<Quote> quotes = getExternalQuotesService().getQuotes(symbol);
         if (quotes == null || quotes.isEmpty()) {
             throw new NullPointerException();
