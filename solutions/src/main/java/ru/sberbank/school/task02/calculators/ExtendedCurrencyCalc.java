@@ -61,6 +61,16 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
         return Optional.of(getCurrentAmount(BigDecimal.ONE, find, operation));
     }
 
+    /**
+     * Заполняет два переданных списка значениями с точным попаданием в объем и с учетом дельты.
+     *
+     * @param amount объем клиента
+     * @param operation покупка/продажа
+     * @param exactHit список объемов с точным попаданием
+     * @param deltaHit список объемов попаданий с учетом дельты
+     * @param quotes список всех quotes возвращенных сервисом
+     * @param delta дельта
+     */
     private void getListsSuitableQuotes(BigDecimal amount, ClientOperation operation, Set<Quote> exactHit,
                                           Set<Quote> deltaHit, List<Quote> quotes, double delta) {
         for (Quote current : quotes) {
@@ -86,6 +96,15 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
         }
     }
 
+    /**
+     * Расчитывает три объема (точный и учетом дельты) и возвращает объем который меньше переданного quote.
+     *
+     * @param amount объем
+     * @param current сравниваемый quote
+     * @param operation покупка/продажа
+     * @param delta дельта
+     * @return значение расчитанного объема, меньше переданного quote или null
+     */
     private BigDecimal getSuitableVolume(BigDecimal amount, Quote current, ClientOperation operation, double delta) {
         BigDecimal curVolume = getCurrentAmount(amount, current, operation);
         BigDecimal addDelta = getCurrentAmount(amount.add(BigDecimal.valueOf(delta)), current, operation);
@@ -96,6 +115,14 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
                 : (subDelta.compareTo(current.getVolumeSize()) < 0) ? subDelta : null;
     }
 
+    /**
+     * проверяет условие, что other объем меньше текущего объема и больше переданного объема.
+     *
+     * @param current текущий объем
+     * @param other другой объем
+     * @param volume объем
+     * @return проверяет подходит ли другой quote текущему объему
+     */
     private boolean isSuit(Quote current, Quote other, BigDecimal volume) {
         boolean currentGreater = current.isInfinity() || (current.getVolumeSize().compareTo(other.getVolumeSize()) > 0
                 && current.getVolumeSize().compareTo(volume) > 0);
@@ -103,10 +130,18 @@ public class ExtendedCurrencyCalc extends CurrencyCalc implements ExtendedFxConv
         return currentGreater && other.getVolumeSize().compareTo(volume) > 0;
     }
 
-    private BigDecimal getCurrentAmount(BigDecimal a, Quote quote, ClientOperation operation) {
+    /**
+     * Делит объем клиента на цену покупки/продажи переданного quote.
+     *
+     * @param amount объем клиента
+     * @param quote объем
+     * @param operation покупка/продажа
+     * @return объем исходя из переданной операции
+     */
+    private BigDecimal getCurrentAmount(BigDecimal amount, Quote quote, ClientOperation operation) {
         return (operation == ClientOperation.BUY)
-                ? a.divide(quote.getBid(), 10, RoundingMode.HALF_UP)
-                : a.divide(quote.getOffer(), 10, RoundingMode.HALF_UP);
+                ? amount.divide(quote.getBid(), 10, RoundingMode.HALF_UP)
+                : amount.divide(quote.getOffer(), 10, RoundingMode.HALF_UP);
     }
 
 }
