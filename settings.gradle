@@ -3,4 +3,6 @@ rootProject.name = 'homework'
 include 'tasks'
 include 'solutions'
 include 'watson'
+include 'common'
+include 'common'
 
